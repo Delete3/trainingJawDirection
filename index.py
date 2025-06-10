@@ -1,49 +1,13 @@
 import open3d as o3d
 import os
-import json
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+from sklearn.model_selection import train_test_split
+from tensorflow import keras
 
-def getPointsCloud(fullpath):
-  jawMesh = o3d.io.read_triangle_mesh(fullpath)
-  pointCloud = jawMesh.sample_points_uniformly(number_of_points=2048)
-  points = np.asarray(pointCloud.points)
-  center = np.mean(points, axis=0)
-  points -= center
-  max_dist = np.max(np.linalg.norm(points, axis=1))
-  points /= max_dist
-  return points
-
-def loadQuaternion(fullpath):
-  with open(fullpath, 'r', encoding='utf-8-sig') as file:
-    josn = json.loads(file.read())
-    matrix = np.array(josn)
-    rotationMatrix = matrix[:3,:3]
-    rotation = R.from_matrix(rotationMatrix)
-    quaternion = rotation.as_quat()
-  return quaternion
-
-def loadOrderData(folderPath):
-  filePathArray = os.listdir(folderPath)
-  for filePath in filePathArray:
-    fileNameSplitArray = os.path.basename(filePath).split('.')
-    baseName = fileNameSplitArray[0]
-    extensionName = fileNameSplitArray[1]
-    fullpath = folderPath + '/' + filePath
-
-    if (extensionName.lower() in ['ply', 'stl', 'obj']) and 'upper' in baseName:
-      upperPoints = getPointsCloud(fullpath)
-    elif (extensionName.lower() in ['ply', 'stl', 'obj']) and 'lower' in baseName:
-      lowerPoints = getPointsCloud(fullpath)
-    elif extensionName.lower() == 'json' and 'upper' in baseName:
-      upperQuaternion = loadQuaternion(fullpath)
-    elif extensionName.lower() == 'json' and 'lower' in baseName:
-      lowerQuaternion = loadQuaternion(fullpath)
-
-  return upperPoints, upperQuaternion, lowerPoints, lowerQuaternion
+from loadFile import loadOrderData
+from AIModel import create_pointnet_regression, optimizer, quaternion_loss
 
 folderNameArray = os.listdir('./data/200')
-print(folderNameArray)
 
 upperPointsArray = []
 lowerPointsArray = []
@@ -63,3 +27,39 @@ upperPointsArray = np.array(upperPointsArray)
 lowerPointsArray = np.array(lowerPointsArray)
 upperQuaternionArray = np.array(upperQuaternionArray)
 lowerQuaternionArray = np.array(lowerQuaternionArray)
+
+upperPointsArrayTrain, upperPointsArrayTemp, upperQuaternionArrayTrain, upperQuaternionArrayTemp = train_test_split(upperPointsArray, upperQuaternionArray, test_size=0.3, random_state=42)
+upperPointsArrayVal, upperPointsArrayTest, upperQuaternionArrayVal, upperQuaternionArrayTest = train_test_split(upperPointsArrayTemp, upperQuaternionArrayTemp, test_size=0.5, random_state=42)
+
+print(f"訓練集大小: X={upperPointsArrayTrain.shape}, y={upperQuaternionArrayTrain.shape}")
+print(f"驗證集大小: X={upperPointsArrayVal.shape}, y={upperQuaternionArrayVal.shape}")
+print(f"測試集大小: X={upperPointsArrayTest.shape}, y={upperQuaternionArrayTest.shape}")
+
+num_points = upperPointsArrayTrain.shape[1]
+num_output_values = upperQuaternionArray.shape[1]
+model = create_pointnet_regression(num_points, num_output_values)
+model.summary()
+model.compile(
+    optimizer=optimizer,
+    loss=quaternion_loss # 使用自定義的四元數損失
+)
+
+epochs = 50 # 根據你的數據集大小和複雜度調整
+batch_size = 32 # 根據你的 Colab GPU 內存調整
+
+# 確保 y_train 和 y_val 的 shape 與損失函數的期望一致
+# 如果使用 geodesic_loss，y_train, y_val 應為 (batch, 9)
+history = model.fit(
+    upperPointsArrayTrain,
+    upperQuaternionArrayTrain, # 真實標籤是展平的 3x3 矩陣
+    epochs=epochs,
+    batch_size=batch_size,
+    validation_data=(upperPointsArrayVal, upperQuaternionArrayVal),
+    callbacks=[
+        keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
+        # keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5)
+    ]
+)
+
+model.save('./data/model.h5')
+model.save('./data/model.keras')
