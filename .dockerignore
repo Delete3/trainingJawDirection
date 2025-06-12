@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.vscode/
+venv/
+env/
+*.log
+data/200/
+# 但 model.h5 需要被包含，除非您打算在 runtime 時掛載它
