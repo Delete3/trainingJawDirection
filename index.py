@@ -13,7 +13,7 @@ upperPointsArray = []
 lowerPointsArray = []
 upperQuaternionArray = []
 lowerQuaternionArray = []
-for i in range(10):
+for i in range(len(folderNameArray)): # 遍歷所有資料夾
   folderName = folderNameArray[i]
   folderPath = './data/200/' + folderName
   upperPoints, upperQuaternion, lowerPoints, lowerQuaternion = loadOrderData(folderPath)

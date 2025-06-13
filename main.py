@@ -7,6 +7,7 @@ import os
 from typing import List
 import tempfile
 import shutil
+from contextlib import asynccontextmanager
 
 # 從 AIModel.py 匯入自訂物件
 # 確保 AIModel.py 與 main.py 在同一目錄，或 AIModel 在 PYTHONPATH 中
@@ -36,29 +37,18 @@ def load_keras_model():
     print("Keras 模型已成功載入。")
     # loaded_model.summary() # 可選：打印模型摘要以供驗證
 
-app = FastAPI(title="Jaw Direction Prediction API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """應用程式啟動時載入模型"""
+    print("應用程式啟動中...")
+    load_keras_model()
+    yield
+    print("應用程式關閉中...")
 
-# --- Pydantic 模型定義 ---
-# class PointCloudInput(BaseModel): # <--- 此模型不再直接用於 /predict/ 端點
-#     # 輸入應為一個點雲，包含 NUM_POINTS 個點，每個點有3個座標 (x, y, z)
-#     # 例如: [[x1,y1,z1], [x2,y2,z2], ..., [x2048,y2048,z2048]]
-#     points: List[conlist(float, min_length=3, max_length=3)]
-
-#     class Config:
-#         schema_extra = {
-#             "example": {
-#                 "points": [[0.1, 0.2, 0.3]] * NUM_POINTS # 範例數據，實際應為真實點雲
-#             }
-#         }
+app = FastAPI(title="Jaw Direction Prediction API", lifespan=lifespan)
 
 class PredictionOutput(BaseModel):
     quaternion: List[float] # 預測的四元數 [w, x, y, z] 或 [x, y, z, w] 取決於您的模型輸出
-
-# --- FastAPI 事件處理 ---
-@app.on_event("startup")
-async def startup_event():
-    """應用程式啟動時載入模型"""
-    load_keras_model()
 
 @app.post("/predict/", response_model=PredictionOutput, summary="上傳STL檔案並預測其對應的四元數")
 async def predict_jaw_quaternion_from_stl(file: UploadFile = File(..., description="一個STL格式的3D模型檔案")):
