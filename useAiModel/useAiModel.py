@@ -1,11 +1,22 @@
+import sys
+import os
+
+# 将项目根目录（C:\inteware\trainingJawDirection）添加到 sys.path
+# __file__ 是当前脚本的路径: C:\inteware\trainingJawDirection\useAiModel\useAiModel.py
+# os.path.dirname(__file__) 是脚本所在的目录: C:\inteware\trainingJawDirection\useAiModel
+# os.path.join(os.path.dirname(__file__), '..') 是上一级目录: C:\inteware\trainingJawDirection
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 import tensorflow as tf
 from tensorflow import keras
-import os
+# import os # os 已经在上面导入了
 
 import numpy as np # 新增匯入 numpy
 # 從 AIModel.py 匯入自訂物件
-from AIModel import quaternion_loss, l2_normalize_quaternion
-from loadFile import loadOrderData
+from trainAiModel.AIModel import quaternion_loss, l2_normalize_quaternion
+from trainAiModel.loadFile import loadOrderData
 
 modelPath = './data/model.h5'
 loaded_model = keras.models.load_model(

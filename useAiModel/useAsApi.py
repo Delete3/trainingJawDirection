@@ -12,8 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware # <--- 匯入 CORSMiddleware
 
 # 從 AIModel.py 匯入自訂物件
 # 確保 AIModel.py 與 main.py 在同一目錄，或 AIModel 在 PYTHONPATH 中
-from AIModel import quaternion_loss, l2_normalize_quaternion
-from loadFile import getPointsCloud # <--- 匯入 getPointsCloud
+from trainAiModel.AIModel import quaternion_loss, l2_normalize_quaternion
+from trainAiModel.loadFile import getPointsCloud # <--- 匯入 getPointsCloud
 
 # --- 常數設定 ---
 MODEL_PATH = './data/model.h5'  # 確認模型路徑正確
