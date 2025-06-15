@@ -16,8 +16,8 @@ def getPointsCloud(fullpath):
 
 def loadQuaternion(fullpath):
   with open(fullpath, 'r', encoding='utf-8-sig') as file:
-    josn = json.loads(file.read())
-    matrix = np.array(josn)
+    jsonData = json.loads(file.read())
+    matrix = np.array(jsonData)
     rotationMatrix = matrix[:3,:3]
     rotation = R.from_matrix(rotationMatrix)
     quaternion = rotation.as_quat()

@@ -8,6 +8,7 @@ from typing import List
 import tempfile
 import shutil
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware # <--- 匯入 CORSMiddleware
 
 # 從 AIModel.py 匯入自訂物件
 # 確保 AIModel.py 與 main.py 在同一目錄，或 AIModel 在 PYTHONPATH 中
@@ -46,6 +47,15 @@ async def lifespan(app: FastAPI):
     print("應用程式關閉中...")
 
 app = FastAPI(title="Jaw Direction Prediction API", lifespan=lifespan)
+
+# --- CORS 中間件設定 ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允許所有來源的請求
+    allow_credentials=True,
+    allow_methods=["*"],  # 允許所有 HTTP 方法
+    allow_headers=["*"],  # 允許所有 HTTP 標頭
+)
 
 class PredictionOutput(BaseModel):
     quaternion: List[float] # 預測的四元數 [w, x, y, z] 或 [x, y, z, w] 取決於您的模型輸出
