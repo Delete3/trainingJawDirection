@@ -107,6 +107,6 @@ async def predict_jaw_quaternion_from_stl(file: UploadFile = File(..., descripti
 
 # --- 運行 FastAPI 應用程式 ---
 # 若要運行此應用程式，請在終端機中執行:
-# python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# python -m uvicorn useAiModel.useAsApi:app --reload --host 0.0.0.0 --port 8000
 #
 # 然後您可以訪問 http://localhost:8000/docs 來查看 API 文件並進行測試。

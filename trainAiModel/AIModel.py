@@ -4,9 +4,11 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-def conv_bn_relu(x, filters, kernel_size=1, strides=1, activation='relu', name_prefix=''):
+L2_WEIGHT_DECAY = 1e-5 # 增加一個全局的 L2 正則化因子
+
+def conv_bn_relu(x, filters, kernel_size=1, strides=1, activation='relu', name_prefix='', use_l2=False):
     x = layers.Conv1D(filters, kernel_size=kernel_size, strides=strides, padding='valid',
-                      kernel_initializer='glorot_uniform', name=f'{name_prefix}_conv')(x)
+                      kernel_initializer='glorot_uniform', kernel_regularizer=keras.regularizers.L2(L2_WEIGHT_DECAY) if use_l2 else None, name=f'{name_prefix}_conv')(x)
     x = layers.BatchNormalization(momentum=0.0, name=f'{name_prefix}_bn')(x) # PointNet 論文建議 momentum=0.0 或較小值
     if activation:
         x = layers.Activation(activation, name=f'{name_prefix}_act')(x)
@@ -17,8 +19,8 @@ def conv_bn_relu(x, filters, kernel_size=1, strides=1, activation='relu', name_p
 def l2_normalize_quaternion(x):
     return tf.linalg.l2_normalize(x, axis=-1)
 
-def dense_bn_relu(x, units, activation='relu', name_prefix=''):
-    x = layers.Dense(units, kernel_initializer='glorot_uniform', name=f'{name_prefix}_dense')(x)
+def dense_bn_relu(x, units, activation='relu', name_prefix='', use_l2=False):
+    x = layers.Dense(units, kernel_initializer='glorot_uniform', kernel_regularizer=keras.regularizers.L2(L2_WEIGHT_DECAY) if use_l2 else None, name=f'{name_prefix}_dense')(x)
     x = layers.BatchNormalization(momentum=0.0, name=f'{name_prefix}_bn')(x)
     if activation:
         x = layers.Activation(activation, name=f'{name_prefix}_act')(x)
@@ -27,12 +29,12 @@ def dense_bn_relu(x, units, activation='relu', name_prefix=''):
 # T-Net (輸入對齊網路)
 def tnet(inputs, num_features, name):
     # inputs shape: (batch, num_points, num_features)
-    x = conv_bn_relu(inputs, 64, name_prefix=f'{name}_conv1')
-    x = conv_bn_relu(x, 128, name_prefix=f'{name}_conv2')
-    x = conv_bn_relu(x, 1024, name_prefix=f'{name}_conv3')
+    x = conv_bn_relu(inputs, 64, name_prefix=f'{name}_conv1', use_l2=True)
+    x = conv_bn_relu(x, 128, name_prefix=f'{name}_conv2', use_l2=True)
+    x = conv_bn_relu(x, 1024, name_prefix=f'{name}_conv3', use_l2=True)
     x = layers.GlobalMaxPooling1D(name=f'{name}_globalmaxpool')(x)
-    x = dense_bn_relu(x, 512, name_prefix=f'{name}_fc1')
-    x = dense_bn_relu(x, 256, name_prefix=f'{name}_fc2')
+    x = dense_bn_relu(x, 512, name_prefix=f'{name}_fc1', use_l2=True)
+    x = dense_bn_relu(x, 256, name_prefix=f'{name}_fc2', use_l2=True)
 
     # 初始化為單位矩陣的偏置
     bias = keras.initializers.Constant(np.eye(num_features).flatten())
@@ -40,7 +42,7 @@ def tnet(inputs, num_features, name):
         num_features * num_features,
         kernel_initializer="zeros",
         bias_initializer=bias,
-        activity_regularizer=keras.regularizers.L2(1e-5), # 添加正則化防止矩陣退化
+        activity_regularizer=keras.regularizers.L2(L2_WEIGHT_DECAY), # 添加正則化防止矩陣退化
         name=f'{name}_transform_matrix'
     )(x)
     transform_matrix = layers.Reshape((num_features, num_features), name=f'{name}_reshape')(transform_matrix)
@@ -54,8 +56,8 @@ def create_pointnet_regression(num_points, num_output_features):
     x = layers.Dot(axes=(2, 1), name="input_transform_dot")([point_cloud_input, input_transform])
 
     # 點特徵提取
-    x = conv_bn_relu(x, 64, name_prefix="feature_conv1")
-    x = conv_bn_relu(x, 64, name_prefix="feature_conv2") # PointNet++ 中這裡的 channel 數可能不同
+    x = conv_bn_relu(x, 64, name_prefix="feature_conv1", use_l2=True)
+    x = conv_bn_relu(x, 64, name_prefix="feature_conv2", use_l2=True) # PointNet++ 中這裡的 channel 數可能不同
 
     # 特徵 T-Net (K=64)
     feature_transform_input = x
@@ -63,17 +65,17 @@ def create_pointnet_regression(num_points, num_output_features):
     x = layers.Dot(axes=(2, 1), name="feature_transform_dot")([feature_transform_input, feature_transform])
 
     # 更多特徵提取
-    x = conv_bn_relu(x, 64, name_prefix="feature_conv3")
-    x = conv_bn_relu(x, 128, name_prefix="feature_conv4")
-    x = conv_bn_relu(x, 1024, name_prefix="feature_conv5_globalfeat") # 全局特徵前的最後一層
+    x = conv_bn_relu(x, 64, name_prefix="feature_conv3", use_l2=True)
+    x = conv_bn_relu(x, 128, name_prefix="feature_conv4", use_l2=True)
+    x = conv_bn_relu(x, 1024, name_prefix="feature_conv5_globalfeat", use_l2=True) # 全局特徵前的最後一層
 
     # 對稱函數：最大池化
     global_feature = layers.GlobalMaxPooling1D(name="global_max_pool")(x)
 
     # 全連接層進行回歸
-    x = dense_bn_relu(global_feature, 512, name_prefix="reg_fc1")
+    x = dense_bn_relu(global_feature, 512, name_prefix="reg_fc1", use_l2=True)
     x = layers.Dropout(0.3, name="reg_dropout1")(x)
-    x = dense_bn_relu(x, 256, name_prefix="reg_fc2")
+    x = dense_bn_relu(x, 256, name_prefix="reg_fc2", use_l2=True)
     x = layers.Dropout(0.3, name="reg_dropout2")(x)
 
     # 輸出層，預測展平後的方向矩陣 (9個值)
