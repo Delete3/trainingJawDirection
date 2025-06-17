@@ -6,7 +6,7 @@ from scipy.spatial.transform import Rotation as R
 
 def getPointsCloud(fullpath):
   jawMesh = o3d.io.read_triangle_mesh(fullpath)
-  pointCloud = jawMesh.sample_points_uniformly(number_of_points=2048)
+  pointCloud = jawMesh.sample_points_uniformly(number_of_points=4096)
   points = np.asarray(pointCloud.points)
   center = np.mean(points, axis=0)
   points -= center
