@@ -59,7 +59,7 @@ model.compile(
     loss=quaternion_loss # 使用自定義的四元數損失
 )
 
-epochs = 50 # 根據你的數據集大小和複雜度調整
+epochs = 100 # 根據你的數據集大小和複雜度調整
 batch_size = 32 # 根據你的 Colab GPU 內存調整
 
 # 確保 y_train 和 y_val 的 shape 與損失函數的期望一致
