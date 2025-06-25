@@ -17,7 +17,7 @@ from trainAiModel.loadFile import getPointsCloud # <--- 匯入 getPointsCloud
 
 # --- 常數設定 ---
 MODEL_PATH = './data/model.h5'  # 確認模型路徑正確
-NUM_POINTS = 2048  # 點雲中的點數，應與訓練時一致
+NUM_POINTS = 4096  # 點雲中的點數，應與訓練時一致
 
 loaded_model = None
 
