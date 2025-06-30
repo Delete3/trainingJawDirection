@@ -77,6 +77,7 @@ app.add_middleware(
 # --- Pydantic 模型定義 ---
 class MarginPredictionOutput(BaseModel):
     margin_line: List[List[float]]
+    quaternion: List[float]
 
 # --- API 端點 ---
 @app.post("/predict-margin/", response_model=MarginPredictionOutput, summary="上傳STL檔案和齒位，預測邊緣線")
@@ -144,7 +145,10 @@ async def predict_margin(
         # 移除批次維度並執行反正規化
         predicted_margin_physical = (predicted_normalized_margin[0] * max_dist) + center
         
-        return MarginPredictionOutput(margin_line=predicted_margin_physical.tolist())
+        return MarginPredictionOutput(
+            margin_line=predicted_margin_physical.tolist(),
+            quaternion=predicted_quat_array[0].tolist()
+        )
 
     except Exception as e:
         # 記錄詳細錯誤以供調試
@@ -161,4 +165,3 @@ async def predict_margin(
 # --- 運行 FastAPI 應用程式的指令 ---
 # 在終端機中執行:
 # uvicorn useAiModel.useAsApi2:app --reload --host 0.0.0.0 --port 8001
-
