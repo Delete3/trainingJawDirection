@@ -7,32 +7,38 @@ from tensorflow import keras
 from loadFile import loadOrderData, NUM_MARGIN_POINTS_TARGET, NUM_JAW_POINTS
 from AIModel import create_margin_prediction_model
 
-def getOneHotToothNumberArray(toothNumberArray):
-    # 處理牙齒編號：轉換為獨熱編碼
-    unique_tooth_numbers = sorted(list(set(toothNumberArray)))
-    tooth_to_index = {tooth: i for i, tooth in enumerate(unique_tooth_numbers)}
-    num_tooth_classes = len(unique_tooth_numbers)
-    print(f"檢測到唯一的牙齒編號: {unique_tooth_numbers}, 類別數: {num_tooth_classes}")
+# --- 固定的牙齒編號映射 ---
+# 使用 FDI 牙位表示法 (右上到左上，左下到右下)
+ALL_TEETH = [
+    18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28,
+    48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38
+]
+TOOTH_TO_INDEX = {tooth: i for i, tooth in enumerate(ALL_TEETH)}
+NUM_TOOTH_CLASSES = len(ALL_TEETH)
+
+print(f"使用固定的牙齒類別，總數: {NUM_TOOTH_CLASSES}")
+
+def getOneHotToothNumberArray(toothNumberArray, tooth_map, num_classes):
+    """使用固定的映射將牙齒編號列表轉換為獨熱編碼"""
 
     oneHotToothNumberArray = []
     for tn in toothNumberArray:
-        index = tooth_to_index.get(tn)
+        index = tooth_map.get(tn)
         if index is not None:
-            oneHotToothNumberArray.append(tf.keras.utils.to_categorical(index, num_classes=num_tooth_classes))
-        # 如果 tooth_to_index.get(tn) 是 None (理論上不應該發生，因為是從 raw_tooth_numbers_list 來的)
-        # 則該樣本將因列表長度不匹配而被過濾掉
-    return num_tooth_classes, oneHotToothNumberArray
+            oneHotToothNumberArray.append(tf.keras.utils.to_categorical(index, num_classes=num_classes))
+        else:
+            print(f"警告：牙齒編號 {tn} 不在預定義的映射中，將被忽略。")
+    return np.array(oneHotToothNumberArray)
 
 folderNameArray = os.listdir("./data/200")
 jawPointsArray = []
 marginLineArray = []
 toothNumberArray = []
 
-# for i in range(len(folderNameArray)): # 遍歷所有資料夾
-for i in range(20):  # 遍歷所有資料夾
+for i in range(len(folderNameArray)): # 遍歷所有資料夾
     folderName = folderNameArray[i]
     folderPath = "./data/200/" + folderName
-    jawPoint, marginLine, toothNumber = loadOrderData(folderPath)
+    jawPoint, marginLine, toothNumber, _, _ = loadOrderData(folderPath)
 
     jawPointsArray.append(jawPoint)
     marginLineArray.append(marginLine)
@@ -40,8 +46,7 @@ for i in range(20):  # 遍歷所有資料夾
 
 jawPointsArray = np.array(jawPointsArray)
 marginLineArray = np.array(marginLineArray)
-num_tooth_classes, oneHotToothNumberArray=getOneHotToothNumberArray(toothNumberArray)
-oneHotToothNumberArray=np.array(oneHotToothNumberArray)
+oneHotToothNumberArray = getOneHotToothNumberArray(toothNumberArray, TOOTH_TO_INDEX, NUM_TOOTH_CLASSES)
 
 print(f"X_jaw_points shape: {jawPointsArray.shape}")
 print(f"X_tooth_numbers_one_hot shape: {marginLineArray.shape}")
@@ -65,7 +70,7 @@ print(f"訓練集大小: Jaw={X_jaw_train.shape}, Tooth={X_tooth_train.shape}, M
 print(f"驗證集大小: Jaw={X_jaw_val.shape}, Tooth={X_tooth_val.shape}, Margin={Y_margin_val.shape}")
 
 # --- 創建和編譯模型 ---
-model = create_margin_prediction_model(NUM_JAW_POINTS, NUM_MARGIN_POINTS_TARGET, num_tooth_classes)
+model = create_margin_prediction_model(NUM_JAW_POINTS, NUM_MARGIN_POINTS_TARGET, NUM_TOOTH_CLASSES)
 model.summary()
 
 model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),

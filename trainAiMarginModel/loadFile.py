@@ -46,20 +46,21 @@ def getPoints(fullpath):
 
 
 def normalizeJawPoint(jawPoints, marginPoints, quaternion):
-    marginPoints = resample_margin_line(marginPoints, NUM_MARGIN_POINTS_TARGET)
-
     jawPoints = quaternion.apply(jawPoints)
-    marginPoints = quaternion.apply(marginPoints)
 
+    original_center = np.mean(jawPoints, axis=0).copy()
     center = np.mean(jawPoints, axis=0)
     jawPoints -= center
-    marginPoints -= center
 
     max_dist = np.max(np.linalg.norm(jawPoints, axis=1))
     jawPoints /= max_dist
+
+    marginPoints = resample_margin_line(marginPoints, NUM_MARGIN_POINTS_TARGET)
+    marginPoints = quaternion.apply(marginPoints)
+    marginPoints -= center
     marginPoints /= max_dist
 
-    return jawPoints, marginPoints
+    return jawPoints, marginPoints, original_center, max_dist
 
 
 def loadQuaternion(fullpath):
@@ -113,6 +114,6 @@ def loadOrderData(folderPath):
         jawPoint = lowerPoints
         quaternion = lowerQuaternion
 
-    jawPoint, marginLine = normalizeJawPoint(jawPoint, marginLine, quaternion)
+    jawPoint, marginLine, original_center, max_dist = normalizeJawPoint(jawPoint, marginLine, quaternion)
 
-    return jawPoint, marginLine, toothNumber
+    return jawPoint, marginLine, toothNumber, original_center, max_dist
