@@ -95,5 +95,5 @@ line_set = o3d.geometry.LineSet(
 )
 line_set.paint_uniform_color([0, 1, 0]) # 綠色
 
-# print("顯示對齊後的口掃模型（灰色）與預測的邊緣線（綠色線條/紅色點）...")
-# o3d.visualization.draw_geometries([jaw_pcd, margin_pcd, line_set], window_name="模型預測結果")
+print("顯示對齊後的口掃模型（灰色）與預測的邊緣線（綠色線條/紅色點）...")
+o3d.visualization.draw_geometries([jaw_pcd, margin_pcd, line_set], window_name="模型預測結果")
