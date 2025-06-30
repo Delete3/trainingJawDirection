@@ -13,7 +13,7 @@ https://www.pcschool.com.tw/blog/it/python-installation
 ## 獲得訓練資料
 
 ### 直接於ftp下載（推薦）
-於ftp以下目錄可下載：  下載后放入放入`./data`資料夾
+於ftp以下目錄可下載：/資料交換區/200筆AI訓練資料/200  下載后放入放入`./data`資料夾
 
 ### 利用nodejs工具撈取
 1. 將cmd切換到airdesign-fetchOrder目錄下: `cd airdesign-fetchOrder`
